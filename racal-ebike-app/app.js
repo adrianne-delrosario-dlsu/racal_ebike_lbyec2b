@@ -3,7 +3,6 @@ const DB_URL = "https://racal-fleet-default-rtdb.firebaseio.com";
 let selectedVehicleType = "Racal";
 let appData = { vehicles: {}, drivers: {}, rentals: {}, expenses: {} };
 
-// Switch between the 4 pages
 function showTab(tabId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -12,7 +11,6 @@ function showTab(tabId) {
   if (tabId === 'profit') renderProfit('today');
 }
 
-// Load all data from Firebase
 async function loadAllData() {
   try {
     const res = await fetch(`${DB_URL}/.json`);
@@ -29,15 +27,54 @@ async function loadAllData() {
   }
 }
 
-// Camera OCR Plate Scanner
 async function scanPlatePhoto() {
   const file = document.getElementById('plateCamera').files[0];
   if (!file) return;
-  document.getElementById('scanStatus').innerText = "Scanning license plate...";
-  const result = await Tesseract.recognize(file, 'eng');
-  const cleanText = result.data.text.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-  document.getElementById('plateInput').value = cleanText;
-  document.getElementById('scanStatus').innerText = "Scan complete! Verify plate & pick Racal or E-Bike:";
+  document.getElementById('scanStatus').innerText = "Enhancing & scanning plate...";
+
+  try {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await new Promise(resolve => (img.onload = resolve));
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const cropX = img.width * 0.14;
+    const cropY = img.height * 0.12;
+    const cropW = img.width * 0.80;
+    const cropH = img.height * 0.76;
+
+    canvas.width = cropW * 3;
+    canvas.height = cropH * 3;
+    ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const bw = gray < 135 ? 0 : 255;
+      d[i] = d[i + 1] = d[i + 2] = bw;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const worker = await Tesseract.createWorker('eng');
+    await worker.setParameters({
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+      tessedit_pageseg_mode: '7'
+    });
+
+    const result = await worker.recognize(canvas);
+    await worker.terminate();
+
+    const cleanText = result.data.text.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+    document.getElementById('plateInput').value = cleanText;
+    document.getElementById('scanStatus').innerText = cleanText
+      ? "Scan complete! Verify plate & pick Racal or E-Bike:"
+      : "Could not read clearly — please type plate below:";
+  } catch (err) {
+    console.error("Scan error:", err);
+    document.getElementById('scanStatus').innerText = "Scanner error — please type plate manually below:";
+  }
 }
 
 function setType(type) {
@@ -111,7 +148,6 @@ async function addExpense() {
 }
 
 function renderUI() {
-  // Populate Dropdowns
   const dSel = document.getElementById('driverSelect');
   dSel.innerHTML = '<option value="">-- Choose Driver --</option>';
   Object.values(appData.drivers).forEach(d => {
@@ -126,7 +162,6 @@ function renderUI() {
     }
   });
 
-  // Render Active & Completed Rentals
   const activeDiv = document.getElementById('activeRentalsList');
   const compDiv = document.getElementById('completedRentalsList');
   activeDiv.innerHTML = "";
@@ -153,7 +188,6 @@ function renderUI() {
     }
   });
 
-  // Render Fleet, Drivers & Expenses Lists
   document.getElementById('fleetList').innerHTML = Object.values(appData.vehicles)
     .map(v => `<div>• <strong>${v.plate}</strong> (${v.type}) — ${v.status}</div>`).join('');
   document.getElementById('driversList').innerHTML = Object.values(appData.drivers)
@@ -192,7 +226,10 @@ function renderProfit(period, btn) {
   document.getElementById('statSwaps').innerText = totalSwaps;
   document.getElementById('statGross').innerText = `₱${gross.toLocaleString()}`;
   document.getElementById('statExpenses').innerText = `- ₱${totalExpenses.toLocaleString()}`;
-  document.getElementById('statNet').innerText = `₱${net.toLocaleString()}`;
+
+  const netEl = document.getElementById('statNet');
+  netEl.innerText = net < 0 ? `-₱${Math.abs(net).toLocaleString()}` : `₱${net.toLocaleString()}`;
+  netEl.style.color = net < 0 ? '#dc2626' : '#16a34a';
 }
 
 function exportCSV() {
