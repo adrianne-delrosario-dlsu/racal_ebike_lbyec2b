@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Racal & E-Bike Fleet Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Browser Camera OCR Library -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Racal & E-Bike Logbook</h1>
+    <nav>
+      <button onclick="showTab('logbook')" id="tab-logbook" class="active">1. Logbook</button>
+      <button onclick="showTab('fleet')" id="tab-fleet">2. Fleet & Drivers</button>
+      <button onclick="showTab('expenses')" id="tab-expenses">3. Repairs</button>
+      <button onclick="showTab('profit')" id="tab-profit">4. Profit</button>
+    </nav>
+  </header>
+
+  <!-- TAB 1: LOGBOOK -->
+  <section id="logbook" class="page active">
+    <div class="card">
+      <h2>Start New Rental</h2>
+      <label>Select Driver:</label>
+      <select id="driverSelect"></select>
+
+      <label>Select Available Unit:</label>
+      <select id="vehicleSelect"></select>
+
+      <button class="btn-green" onclick="startRental()">START RENTAL</button>
+    </div>
+
+    <h2>Active Rentals (On Road)</h2>
+    <div id="activeRentalsList"></div>
+
+    <h2>Completed History</h2>
+    <div id="completedRentalsList"></div>
+  </section>
+
+  <!-- TAB 2: FLEET & DRIVERS -->
+  <section id="fleet" class="page">
+    <div class="card">
+      <h2>Add Racal or E-Bike (Camera Scan)</h2>
+      <input type="file" id="plateCamera" accept="image/*" capture="environment" onchange="scanPlatePhoto()">
+      <p id="scanStatus">Snap a plate photo or type below:</p>
+
+      <input type="text" id="plateInput" placeholder="License Plate (e.g. RCL-101)">
+      <div class="row">
+        <button type="button" id="btnRacal" class="btn-toggle selected" onclick="setType('Racal')">Racal</button>
+        <button type="button" id="btnEbike" class="btn-toggle" onclick="setType('E-Bike')">E-Bike</button>
+      </div>
+      <button class="btn-blue" onclick="addVehicle()">Save Vehicle</button>
+    </div>
+
+    <div class="card">
+      <h2>Add Driver</h2>
+      <input type="text" id="driverNameInput" placeholder="Driver Full Name">
+      <button class="btn-blue" onclick="addDriver()">Save Driver</button>
+    </div>
+
+    <div class="card">
+      <h3>Registered Fleet & Drivers</h3>
+      <div id="fleetList"></div>
+      <hr>
+      <div id="driversList"></div>
+    </div>
+  </section>
+
+  <!-- TAB 3: REPAIR DEDUCTIBLES -->
+  <section id="expenses" class="page">
+    <div class="card">
+      <h2>Log Repair / Expense Deductible</h2>
+      <input type="text" id="expenseDesc" placeholder="Repair details (e.g. Flat tire, brake)">
+      <input type="number" id="expenseAmount" placeholder="Cost in PHP (e.g. 150)">
+      <button class="btn-red" onclick="addExpense()">Save Deductible</button>
+    </div>
+    <div id="expensesList"></div>
+  </section>
+
+  <!-- TAB 4: NET PROFIT REPORT -->
+  <section id="profit" class="page">
+    <div class="row">
+      <button class="btn-toggle selected" onclick="renderProfit('today', this)">Today</button>
+      <button class="btn-toggle" onclick="renderProfit('week', this)">This Week</button>
+      <button class="btn-toggle" onclick="renderProfit('month', this)">This Month</button>
+    </div>
+
+    <div class="card summary-box">
+      <p>Total Battery Swaps: <strong id="statSwaps">0</strong> (× ₱150)</p>
+      <p>Gross Revenue: <strong id="statGross">₱0</strong></p>
+      <p>Repair Deductibles: <strong id="statExpenses">- ₱0</strong></p>
+      <hr>
+      <h2>Net Profit: <span id="statNet">₱0</span></h2>
+      <button class="btn-blue" onclick="exportCSV()">Download CSV Report</button>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
